@@ -1,27 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
+import { fetchJobs, toggleFavorite } from './redux/actions'
 
 const API = 'https://strive-benchmark.herokuapp.com/api/jobs'
-const FAVORITES_KEY = 'favoriteJobs'
-
-function useFavorites() {
-  const [favorites, setFavorites] = useState(() =>
-    JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')
-  )
-
-  useEffect(() => {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
-  }, [favorites])
-
-  const isFavorite = (id) => favorites.some((f) => f._id === id)
-
-  const toggleFavorite = (job) =>
-    setFavorites((prev) =>
-      isFavorite(job._id) ? prev.filter((f) => f._id !== job._id) : [...prev, job]
-    )
-
-  return { favorites, isFavorite, toggleFavorite }
-}
 
 function JobRow({ job, isFavorite, onToggleFavorite, onCompanyClick }) {
   return (
@@ -63,22 +45,24 @@ function JobList({ jobs, isFavorite, onToggleFavorite, onCompanyClick }) {
 function App() {
   const [view, setView] = useState('search') // search | favorites | company
   const [search, setSearch] = useState('')
-  const [jobs, setJobs] = useState([])
   const [companyName, setCompanyName] = useState('')
   const [companyJobs, setCompanyJobs] = useState([])
 
-  const { favorites, isFavorite, toggleFavorite } = useFavorites()
+  const dispatch = useDispatch()
+  const jobs = useSelector((state) => state.search.jobs)
+  const favorites = useSelector((state) => state.favorites.favorites)
+
+  const isFavorite = (id) => favorites.some((f) => f._id === id)
+  const onToggleFavorite = (job) => dispatch(toggleFavorite(job))
 
   // ponytail: plain setTimeout debounce, no lib needed for one input
   useEffect(() => {
     if (view !== 'search') return
     const t = setTimeout(() => {
-      fetch(`${API}?search=${encodeURIComponent(search)}&limit=20`)
-        .then((r) => r.json())
-        .then((data) => setJobs(data.data || []))
+      dispatch(fetchJobs(search))
     }, 300)
     return () => clearTimeout(t)
-  }, [search, view])
+  }, [search, view, dispatch])
 
   useEffect(() => {
     if (view !== 'company' || !companyName) return
@@ -119,7 +103,7 @@ function App() {
           <JobList
             jobs={jobs}
             isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
+            onToggleFavorite={onToggleFavorite}
             onCompanyClick={openCompany}
           />
         </>
@@ -129,7 +113,7 @@ function App() {
         <JobList
           jobs={favorites}
           isFavorite={isFavorite}
-          onToggleFavorite={toggleFavorite}
+          onToggleFavorite={onToggleFavorite}
           onCompanyClick={openCompany}
         />
       )}
@@ -143,7 +127,7 @@ function App() {
           <JobList
             jobs={companyJobs}
             isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
+            onToggleFavorite={onToggleFavorite}
             onCompanyClick={openCompany}
           />
         </>
